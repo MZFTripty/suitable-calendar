@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Default (light) variables */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* Explicit theme overrides: when `data-theme` is set on <html>, these take priority */
+[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+/* Fallback to system preference only when data-theme not present */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+  /* A custom theme block, possibly processed by a tool like PostCSS or a design system */
+  @theme {
+    /* Define a custom CSS variable that uses a keyframe animation */
+    --animate-fade-in: fade-in-scale 0.3s ease-out;
+
+  /* Define the keyframes for the "fade-in-scale" animation */
+  @keyframes fade-in-scale {
+    0% {
+      /* Start: slightly smaller and fully transparent */
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      /* End: fully visible and normal size */
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
