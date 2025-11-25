@@ -10,4 +10,4 @@ import * as schema from './schema';
 const sql = neon(process.env.DATABASE_URL!);
 
 // Create and export the Drizzle ORM instance, with the Neon client and schema for type-safe queries
-const db = drizzle(sql,{schema});
+export const db = drizzle(sql,{schema});
