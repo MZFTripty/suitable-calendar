@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import { formatEventDescription } from "@/lib/formatters";
+import { CopyEventButton } from "../CopyEventButton";
 
 // Type definition for event card props
 type EventCardProps = {
