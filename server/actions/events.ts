@@ -131,3 +131,36 @@ export async function getEvents(clerkUserId: string): Promise<EventRow[]> {
   // Return the full list of events
   return events;
 }
+
+// Fetch a specific event for a given user
+export async function getEvent(userId: string, eventId: string): Promise<EventRow | undefined> {
+  const event = await db.query.EventTable.findFirst({
+    where: ({ id, clerkUserId }, { and, eq }) =>
+      and(eq(clerkUserId, userId), eq(id, eventId)), // Make sure the event belongs to the user
+  })
+
+  return event ?? undefined // Explicitly return undefined if not found
+}
+
+
+// Define a new type for public events, which are always active
+// It removes the generic 'isActive' field and replaces it with a literal true
+export type PublicEvent = Omit<EventRow, "isActive"> & { isActive: true }
+// “This version of an event is guaranteed to be active — no maybe, no false.”
+
+
+// Async function to fetch all active (public) events for a specific user
+export async function getPublicEvents(clerkUserId: string): Promise<PublicEvent[]> {
+  // Query the database for events where:
+  // - the clerkUserId matches
+  // - the event is marked as active
+  // Events are ordered alphabetically (case-insensitive) by name
+  const events = await db.query.EventTable.findMany({
+    where: ({ clerkUserId: userIdCol, isActive }, { eq, and }) =>
+      and(eq(userIdCol, clerkUserId), eq(isActive, true)),
+    orderBy: ({ name }, { asc, sql }) => asc(sql`lower(${name})`),
+  })
+
+  // Cast the result to the PublicEvent[] type to indicate all are active
+  return events as PublicEvent[]
+}

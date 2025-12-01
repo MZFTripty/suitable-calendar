@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
+import { DAYS_OF_WEEK_IN_ORDER } from "@/constants";
 import { db } from "@/drizzle/db";
 import { ScheduleAvailabilityTable, ScheduleTable } from "@/drizzle/schema";
 import { scheduleFormSchema } from "@/schema/schedule";
 import { auth } from "@clerk/nextjs/server";
+import { addMinutes, areIntervalsOverlapping, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWednesday, isWithinInterval, setHours, setMinutes } from "date-fns";
 import { eq } from "drizzle-orm";
 import { BatchItem } from "drizzle-orm/batch";
 import { revalidatePath } from "next/cache";
@@ -91,35 +93,35 @@ export async function saveSchedule(
   }
 }
 
-// /**
-//  * Filters a list of time slots to return only those that:
-//  * 1. Match the user's availability schedule
-//  * 2. Do not overlap with existing Google Calendar events
-//  */
-// export async function getValidTimesFromSchedule(
-//   timesInOrder: Date[], // All possible time slots to check
-//   event: { clerkUserId: string; durationInMinutes: number } // Event-specific data
-// ): Promise<Date[]> {
-//   const { clerkUserId: userId, durationInMinutes } = event;
+/**
+ * Filters a list of time slots to return only those that:
+ * 1. Match the user's availability schedule
+ * 2. Do not overlap with existing Google Calendar events
+ */
+export async function getValidTimesFromSchedule(
+  timesInOrder: Date[], // All possible time slots to check
+  event: { clerkUserId: string; durationInMinutes: number } // Event-specific data
+): Promise<Date[]> {
+  const { clerkUserId: userId, durationInMinutes } = event;
 
-//   // Define the start and end of the overall range to check
-//   const start = timesInOrder[0];
-//   const end = timesInOrder.at(-1);
+  // Define the start and end of the overall range to check
+  const start = timesInOrder[0];
+  const end = timesInOrder.at(-1);
 
-//   // If start or end is missing, there are no times to check
-//   if (!start || !end) return [];
+  // If start or end is missing, there are no times to check
+  if (!start || !end) return [];
 
-//   // Fetch the user's saved schedule along with their availabilities
-//   const schedule = await getSchedule(userId);
+  // Fetch the user's saved schedule along with their availabilities
+  const schedule = await getSchedule(userId);
 
-//   // If no schedule is found, return an empty list (user has no availabilities)
-//   if (schedule == null) return [];
+  // If no schedule is found, return an empty list (user has no availabilities)
+  if (schedule == null) return [];
 
-//   // Group availabilities by day of the week (e.g., Monday, Tuesday)
-//   const groupedAvailabilities = Object.groupBy(
-//     schedule.availabilities,
-//     (a) => a.dayOfWeek
-//   );
+  // Group availabilities by day of the week (e.g., Monday, Tuesday)
+  const groupedAvailabilities = Object.groupBy(
+    schedule.availabilities,
+    (a) => a.dayOfWeek
+  );
 
 //   // Fetch all existing Google Calendar events between start and end
 //   const eventTimes = await getCalendarEventTimes(userId, {
@@ -127,89 +129,89 @@ export async function saveSchedule(
 //     end,
 //   });
 
-//   // Filter and return only valid time slots based on availability and conflicts
-//   return timesInOrder.filter((intervalDate) => {
-//     // Get the user's availabilities for the specific day, adjusted to their timezone
-//     const availabilities = getAvailabilities(
-//       groupedAvailabilities,
-//       intervalDate,
-//       schedule.timezone
-//     );
+  // Filter and return only valid time slots based on availability and conflicts
+  return timesInOrder.filter((intervalDate) => {
+    // Get the user's availabilities for the specific day, adjusted to their timezone
+    const availabilities = getAvailabilities(
+      groupedAvailabilities,
+      intervalDate,
+      schedule.timezone
+    );
 
-//     // Define the time range for a potential event starting at this interval
-//     const eventInterval = {
-//       start: intervalDate, // Proposed start time
-//       end: addMinutes(intervalDate, durationInMinutes), // Proposed end time (start + duration)
-//     };
+    // Define the time range for a potential event starting at this interval
+    const eventInterval = {
+      start: intervalDate, // Proposed start time
+      end: addMinutes(intervalDate, durationInMinutes), // Proposed end time (start + duration)
+    };
 
-//     // Keep only the time slots that satisfy two conditions:
-//     return (
-//       // 1. This time slot does not overlap with any existing calendar events
-//       eventTimes.every((eventTime) => {
-//         return !areIntervalsOverlapping(eventTime, eventInterval);
-//       }) &&
-//       // 2. The entire proposed event fits within at least one availability window
-//       availabilities.some((availability) => {
-//         return (
-//           isWithinInterval(eventInterval.start, availability) && // Start is inside availability
-//           isWithinInterval(eventInterval.end, availability) // End is inside availability
-//         );
-//       })
-//     );
-//   });
-// }
+    // Keep only the time slots that satisfy two conditions:
+    return (
+      // 1. This time slot does not overlap with any existing calendar events
+      eventTimes.every((eventTime) => {
+        return !areIntervalsOverlapping(eventTime, eventInterval);
+      }) &&
+      // 2. The entire proposed event fits within at least one availability window
+      availabilities.some((availability) => {
+        return (
+          isWithinInterval(eventInterval.start, availability) && // Start is inside availability
+          isWithinInterval(eventInterval.end, availability) // End is inside availability
+        );
+      })
+    );
+  });
+}
 
-// function getAvailabilities(
-//   groupedAvailabilities: Partial<
-//     Record<
-//       (typeof DAYS_OF_WEEK_IN_ORDER)[number],
-//       (typeof ScheduleAvailabilityTable.$inferSelect)[]
-//     >
-//   >,
-//   date: Date,
-//   timezone: string
-// ): { start: Date; end: Date }[] {
-//   // Determine the day of the week based on the given date
-//   const dayOfWeek = (() => {
-//     if (isMonday(date)) return "monday";
-//     if (isTuesday(date)) return "tuesday";
-//     if (isWednesday(date)) return "wednesday";
-//     if (isThursday(date)) return "thursday";
-//     if (isFriday(date)) return "friday";
-//     if (isSaturday(date)) return "saturday";
-//     if (isSunday(date)) return "sunday";
-//     return null; // If the date doesn't match any day (highly unlikely), return null
-//   })();
+function getAvailabilities(
+  groupedAvailabilities: Partial<
+    Record<
+      (typeof DAYS_OF_WEEK_IN_ORDER)[number],
+      (typeof ScheduleAvailabilityTable.$inferSelect)[]
+    >
+  >,
+  date: Date,
+  timezone: string
+): { start: Date; end: Date }[] {
+  // Determine the day of the week based on the given date
+  const dayOfWeek = (() => {
+    if (isMonday(date)) return "monday";
+    if (isTuesday(date)) return "tuesday";
+    if (isWednesday(date)) return "wednesday";
+    if (isThursday(date)) return "thursday";
+    if (isFriday(date)) return "friday";
+    if (isSaturday(date)) return "saturday";
+    if (isSunday(date)) return "sunday";
+    return null; // If the date doesn't match any day (highly unlikely), return null
+  })();
 
-//   // If day of the week is not determined, return an empty array
-//   if (!dayOfWeek) return [];
+  // If day of the week is not determined, return an empty array
+  if (!dayOfWeek) return [];
 
-//   // Get the availabilities for the determined day
-//   const dayAvailabilities = groupedAvailabilities[dayOfWeek];
+  // Get the availabilities for the determined day
+  const dayAvailabilities = groupedAvailabilities[dayOfWeek];
 
-//   // If there are no availabilities for that day, return an empty array
-//   if (!dayAvailabilities) return [];
+  // If there are no availabilities for that day, return an empty array
+  if (!dayAvailabilities) return [];
 
-//   // Map each availability time range to a { start: Date, end: Date } object adjusted to the user's timezone
-//   return dayAvailabilities.map(({ startTime, endTime }) => {
-//     // Parse startTime (e.g., "09:30") into hours and minutes
-//     const [startHour, startMinute] = startTime.split(":").map(Number);
-//     // Parse endTime (e.g., "17:00") into hours and minutes
-//     const [endHour, endMinute] = endTime.split(":").map(Number);
+  // Map each availability time range to a { start: Date, end: Date } object adjusted to the user's timezone
+  return dayAvailabilities.map(({ startTime, endTime }) => {
+    // Parse startTime (e.g., "09:30") into hours and minutes
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    // Parse endTime (e.g., "17:00") into hours and minutes
+    const [endHour, endMinute] = endTime.split(":").map(Number);
 
-//     // Create a start Date object set to the correct hour and minute, then convert it to the given timezone
-//     const start = fromZonedTime(
-//       setMinutes(setHours(date, startHour), startMinute),
-//       timezone
-//     );
+    // Create a start Date object set to the correct hour and minute, then convert it to the given timezone
+    const start = fromZonedTime(
+      setMinutes(setHours(date, startHour), startMinute),
+      timezone
+    );
 
-//     // Create an end Date object set to the correct hour and minute, then convert it to the given timezone
-//     const end = fromZonedTime(
-//       setMinutes(setHours(date, endHour), endMinute),
-//       timezone
-//     );
+    // Create an end Date object set to the correct hour and minute, then convert it to the given timezone
+    const end = fromZonedTime(
+      setMinutes(setHours(date, endHour), endMinute),
+      timezone
+    );
 
-//     // Return the availability interval
-//     return { start, end };
-//   });
-// }
+    // Return the availability interval
+    return { start, end };
+  });
+}

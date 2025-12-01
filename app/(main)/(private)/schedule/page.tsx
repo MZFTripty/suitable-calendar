@@ -1,10 +1,10 @@
-import PublicPage from '@/app/pages/publicPage/PublicPage'
+import SchedulePage from '@/app/pages/schedulePage/SchedulePage'
 import React from 'react'
 
 export default function page() {
   return (
     <div>
-      <PublicPage />
+      <SchedulePage />
     </div>
   )
 }
