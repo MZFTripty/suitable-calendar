@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react/no-unescaped-entities */
 import { getEvent } from "@/server/actions/events";
 import { AlertTriangle } from "lucide-react";
@@ -52,10 +53,35 @@ export default async function BookingPage({
   const endDate = endOfDay(addYears(startDate, 1)); // Set range to 1 year ahead
 
   // Generate valid available time slots for the event using the custom scheduler logic
-  const validTimes = await getValidTimesFromSchedule(
-    eachMinuteOfInterval({ start: startDate, end: endDate }, { step: 15 }),
-    event
-  );
+  let validTimes: Date[] = [];
+  try {
+    validTimes = await getValidTimesFromSchedule(
+      eachMinuteOfInterval({ start: startDate, end: endDate }, { step: 15 }),
+      event
+    );
+  } catch (err: any) {
+    // Render a user-facing error message when fetching calendar events (OAuth / API failures)
+    return (
+      <div className="max-w-md mx-auto mt-6 bg-yellow-50 border border-yellow-200 text-yellow-900 px-4 py-3 rounded-md">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5" />
+          <div className="text-sm">
+            <div className="font-medium">
+              Unable to load calendar availability
+            </div>
+            <div className="mt-1 break-words">
+              {err?.message ?? String(err)}
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">
+              If this mentions OAuth or a Bad Request, ensure the user has
+              connected their Google account and that your Clerk OAuth app is
+              configured.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // If no valid time slots are available, show a message and an option to pick another event
   if (validTimes.length === 0) {

@@ -17,7 +17,7 @@ export default async function SchedulePage() {
         <CardTitle>Schedule</CardTitle> {/* Display title for the page */}
       </CardHeader>
       <CardContent>
-        <ScheduleForm schedule={schedule} />
+        <ScheduleForm schedule={schedule ?? undefined} />
         {/* Render the ScheduleForm component with the fetched schedule */}
       </CardContent>
     </Card>

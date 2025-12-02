@@ -2,8 +2,8 @@
 // This React component, `MeetingForm`, is a client-side form built with `react-hook-form` and `zod` validation, allowing users to schedule a meeting by selecting a timezone, date, and time, and providing their name, email, and optional notes. It uses various custom UI components (like `Select`, `Calendar`, and `Popover`) for a smooth user experience. The form filters available meeting times (`validTimes`) based on the user's selected timezone and date, ensuring only valid options are shown. Upon submission, it sends the form data along with the `eventId` and `clerkUserId` to a backend function (`createMeeting`) to create the meeting, and handles any server-side errors by displaying them in the UI.
 
 "use client";
-import { meetingFormSchema } from "@/schema/meetings";
-import { createMeeting } from "@/server/actions/meetings";
+
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toZonedTime } from "date-fns-tz";
 import { useRouter } from "next/navigation";
@@ -26,20 +26,27 @@ import {
   SelectValue,
 } from "../ui/select";
 import {
-  formatDate,
+
+    formatDate,
   formatTimeString,
   formatTimezoneOffset,
 } from "@/lib/formatters";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
-import { Calendar } from "../ui/calendar";
+
 import { isSameDay } from "date-fns";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import Link from "next/link";
+import { meetingFormSchema } from "@/schema/meetings";
+import { createMeeting } from "@/server/actions/meetings";
+
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Calendar } from "../ui/calendar";
 import Booking from "../Booking";
+
 
 // Enables client-side rendering for this component
 
@@ -104,7 +111,7 @@ export default function MeetingForm({
     }
   }
 
-  if (form.formState.isSubmitting) return <Booking />;
+  if (form.formState.isSubmitting) return <Booking/>;
 
   return (
     <Form {...form}>

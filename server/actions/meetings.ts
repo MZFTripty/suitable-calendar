@@ -5,9 +5,10 @@ import { db } from "@/drizzle/db";
 
 import { fromZonedTime } from "date-fns-tz";
 import { getValidTimesFromSchedule } from "./schedule";
-import { createCalendarEvent } from "../google/googleCalendar";
+
 import { z } from "zod";
 import { meetingActionSchema } from "@/schema/meetings";
+import { createCalendarEvent } from "../google/googleCalendar";
 
 //Server action to create a meeting
 export async function createMeeting(

@@ -6,11 +6,26 @@ import { db } from "@/drizzle/db";
 import { ScheduleAvailabilityTable, ScheduleTable } from "@/drizzle/schema";
 import { scheduleFormSchema } from "@/schema/schedule";
 import { auth } from "@clerk/nextjs/server";
-import { addMinutes, areIntervalsOverlapping, isFriday, isMonday, isSaturday, isSunday, isThursday, isTuesday, isWednesday, isWithinInterval, setHours, setMinutes } from "date-fns";
+import {
+  addMinutes,
+  areIntervalsOverlapping,
+  isFriday,
+  isMonday,
+  isSaturday,
+  isSunday,
+  isThursday,
+  isTuesday,
+  isWednesday,
+  isWithinInterval,
+  setHours,
+  setMinutes,
+} from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
 import { eq } from "drizzle-orm";
 import { BatchItem } from "drizzle-orm/batch";
 import { revalidatePath } from "next/cache";
 import z from "zod";
+import { getCalendarEventTimes } from "../google/googleCalendar";
 
 type ScheduleRow = typeof ScheduleTable.$inferSelect;
 type AvailabilityRow = typeof ScheduleAvailabilityTable.$inferSelect;
@@ -20,18 +35,29 @@ export type FullSchedule = ScheduleRow & {
 };
 
 // This function fetches the schedule (and its availabilities) for a given user from the database
-export async function getSchedule(userId: string): Promise<FullSchedule> {
+export async function getSchedule(
+  userId: string
+): Promise<FullSchedule | null> {
   // Query the ScheduleTable for the first record that matches the user's ID
   // Also eagerly load the related 'availabilities' data
-  const schedule = await db.query.ScheduleTable.findFirst({
-    where: ({ clerkUserId }, { eq }) => eq(clerkUserId, userId), // Match schedule where user ID equals the provided userId
-    with: {
-      availabilities: true, // Include all related availability records
-    },
-  });
+  try {
+    const schedule = await db.query.ScheduleTable.findFirst({
+      where: ({ clerkUserId }, { eq }) => eq(clerkUserId, userId), // Match schedule where user ID equals the provided userId
+      with: {
+        availabilities: true, // Include all related availability records
+      },
+    });
 
-  // Return the schedule if found, or null if it doesn't exist
-  return schedule as FullSchedule;
+    // Return the schedule if found, or null if it doesn't exist
+    return (schedule as FullSchedule) ?? null;
+  } catch (error: any) {
+    // Log the underlying DB error to help debugging in dev
+    console.error("getSchedule query failed:", error?.message ?? error);
+    // Re-throw a clearer error for callers or return null depending on desired behavior
+    throw new Error(
+      `Failed to fetch schedule for user ${userId}: ${error?.message ?? error}`
+    );
+  }
 }
 
 // This server action saves the user's schedule and availabilities
@@ -123,11 +149,11 @@ export async function getValidTimesFromSchedule(
     (a) => a.dayOfWeek
   );
 
-//   // Fetch all existing Google Calendar events between start and end
-//   const eventTimes = await getCalendarEventTimes(userId, {
-//     start,
-//     end,
-//   });
+  // Fetch all existing Google Calendar events between start and end
+  const eventTimes = await getCalendarEventTimes(userId, {
+    start,
+    end,
+  });
 
   // Filter and return only valid time slots based on availability and conflicts
   return timesInOrder.filter((intervalDate) => {
