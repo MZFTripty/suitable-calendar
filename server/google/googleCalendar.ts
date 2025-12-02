@@ -8,10 +8,19 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { addMinutes, endOfDay, startOfDay } from "date-fns";
 import { calendar_v3, google } from "googleapis";
 
+// Normalize clerkClient shape: some versions export an async initializer (function)
+// while others export an already-instantiated client object. This helper
+// resolves either form into a usable client instance.
+async function resolveClerkClient() {
+  const anyClient = clerkClient as any;
+  if (typeof anyClient === "function") return await anyClient();
+  return anyClient;
+}
+
 async function getOAuthClient(clerkUserId: string) {
   try {
-    // Use Clerk backend client (it's a synchronous export) and fetch the OAuth access token
-    const client = await clerkClient();
+    // Resolve Clerk backend client (handles both function and object exports)
+    const client = await resolveClerkClient();
 
     // Fetch the OAuth access token for the given Clerk user ID
     const { data } = await client.users.getUserOauthAccessToken(
@@ -124,12 +133,12 @@ export async function createCalendarEvent({
       throw new Error("OAuth client could not be obtained."); // Error handling if OAuth client is not available.
     }
 
-    const client = await clerkClient(); // Retrieve the Clerk backend client instance.
+    const client = await resolveClerkClient(); // Retrieve the Clerk backend client instance.
     const calendarUser = await client.users.getUser(clerkUserId); // Get the user details from Clerk.
 
     // Get the user's primary email address from their profile.
     const primaryEmail = calendarUser.emailAddresses.find(
-      ({ id }) => id === calendarUser.primaryEmailAddressId // Find the primary email using the ID.
+      (e: { id: string }) => e.id === calendarUser.primaryEmailAddressId // Find the primary email using the ID.
     );
 
     if (!primaryEmail) {

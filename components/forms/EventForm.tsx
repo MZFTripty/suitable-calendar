@@ -3,6 +3,7 @@
 import { eventFormSchema } from "@/schema/events";
 import React, { useTransition } from "react";
 import { useForm } from "react-hook-form";
+import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
 import Link from "next/link";
@@ -53,11 +54,16 @@ export default function EventForm({
 
   const [isDeletePending, startDeleteTransition] = useTransition();
   const router = useRouter();
-  
+
   type EventFormValues = z.infer<typeof eventFormSchema>;
-  
+
   const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema), // Validate with Zod schema
+    // `zodResolver` can produce a Resolver with slightly different inferred generics
+    // depending on TypeScript versions. Cast to the expected `Resolver` type
+    // to satisfy the compiler here.
+    resolver: zodResolver(
+      eventFormSchema
+    ) as unknown as Resolver<EventFormValues>,
     defaultValues: event
       ? {
           // If `event` is provided (edit mode), spread its existing properties as default values
